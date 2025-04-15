@@ -1,60 +1,53 @@
 from flask import Flask, request, jsonify
-import requests
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+import time
 
 app = Flask(__name__)
 
-LOGIN_URL = "https://brokersnapshot.com/LogIn"
-SEARCH_URL = "https://brokersnapshot.com/?search="
+def get_company_name(usdot):
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--window-size=1920,1080")
+    options.binary_location = "/usr/bin/chromium"
 
-# Use your actual login credentials
-USERNAME = "shahrukhfiaz@gmail.com"
-PASSWORD = "Saferfmcsa123@"
+    driver = webdriver.Chrome(options=options)
 
-session = requests.Session()
+    try:
+        # 1. Login
+        driver.get("https://brokersnapshot.com/LogIn")
+        time.sleep(2)
 
-def login_to_brokersnapshot():
-    payload = {
-        "email": USERNAME,
-        "password": PASSWORD
-    }
+        driver.find_element(By.ID, "email").send_keys("shahrukhfiaz@gmail.com")
+        driver.find_element(By.ID, "password").send_keys("Saferfmcsa123@")
+        driver.find_element(By.ID, "ok-button").click()
+        time.sleep(3)
 
-    # Custom headers
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "Mozilla/5.0"
-    }
+        # 2. Search USDOT
+        driver.get(f"https://brokersnapshot.com/?search={usdot}")
+        time.sleep(3)
 
-    # Perform login
-    login_response = session.post(LOGIN_URL, data=payload, headers=headers)
-    return login_response.ok
+        # 3. Extract Company Name
+        company_elem = driver.find_element(By.XPATH, "//td[@data-label='Company']//a")
+        return {"usdot": usdot, "company_name": company_elem.text.strip()}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+    finally:
+        driver.quit()
 
 @app.route('/get-name', methods=['GET'])
 def get_name():
     usdot = request.args.get('usdot')
-
     if not usdot:
         return jsonify({"error": "Missing 'usdot' parameter"}), 400
 
-    # Login first
-    if not login_to_brokersnapshot():
-        return jsonify({"error": "Failed to login"}), 401
-
-    # Search the USDOT
-    search_response = session.get(SEARCH_URL + usdot)
-    soup = BeautifulSoup(search_response.text, 'html.parser')
-
-    # Extract full name from result
-    try:
-        lead_name_tag = soup.find("span", class_="MuiTypography-root MuiTypography-h5 css-1b4e4nt")
-        if not lead_name_tag:
-            return jsonify({"error": "Name not found"}), 404
-
-        lead_name = lead_name_tag.text.strip()
-        return jsonify({"usdot": usdot, "name": lead_name})
-
-    except Exception as e:
-        return jsonify({"error": "Parsing failed", "details": str(e)}), 500
+    result = get_company_name(usdot)
+    return jsonify(result)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8080)
