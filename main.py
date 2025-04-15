@@ -5,9 +5,9 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 # Replace these with your actual BrokerSnapshot credentials
-USERNAME = 'your_email@example.com'
-PASSWORD = 'your_password'
-LOGIN_URL = 'https://brokersnapshot.com/login'
+USERNAME = 'shahrukhfiaz@gmail.com'
+PASSWORD = 'Seahub123@'
+LOGIN_URL = 'https://brokersnapshot.com/LogIn'
 SEARCH_URL = 'https://brokersnapshot.com/?search='
 
 def get_csrf_token(session, url):
