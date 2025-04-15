@@ -17,7 +17,7 @@ def get_company_name(usdot):
     driver = webdriver.Chrome(options=options)
 
     try:
-        # 1. Login
+        # 1. Log in
         driver.get("https://brokersnapshot.com/LogIn")
         time.sleep(2)
 
@@ -30,7 +30,7 @@ def get_company_name(usdot):
         driver.get(f"https://brokersnapshot.com/?search={usdot}")
         time.sleep(3)
 
-        # 3. Extract Company Name
+        # 3. Extract company name
         company_elem = driver.find_element(By.XPATH, "//td[@data-label='Company']//a")
         return {"usdot": usdot, "company_name": company_elem.text.strip()}
 
