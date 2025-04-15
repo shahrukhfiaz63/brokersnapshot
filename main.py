@@ -1,25 +1,29 @@
 from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
-import os
 
 app = Flask(__name__)
 
-USERNAME = "shahrukhfiaz@gmail.com"
-PASSWORD = "Saferfmcsa123@"
 LOGIN_URL = "https://brokersnapshot.com/LogIn"
 SEARCH_URL = "https://brokersnapshot.com/?search="
+USERNAME = "shahrukhfiaz@gmail.com"
+PASSWORD = "Saferfmcsa123@"
 
 session = requests.Session()
 
 def login():
+    # Initial GET to grab cookies if needed
+    session.get(LOGIN_URL)
+    
     payload = {
-        "username": USERNAME,
+        "email": USERNAME,
         "password": PASSWORD
     }
+
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
+
     response = session.post(LOGIN_URL, data=payload, headers=headers)
     return response.ok
 
@@ -27,17 +31,26 @@ def get_broker_name(usdot):
     if not login():
         return {"error": "Login failed"}
 
-    response = session.get(SEARCH_URL + usdot)
-    if response.status_code != 200:
-        return {"error": "Search failed", "status": response.status_code}
+    search_url = f"{SEARCH_URL}{usdot}"
+    res = session.get(search_url)
 
-    soup = BeautifulSoup(response.text, "html.parser")
-    result = soup.find("h2", class_="text-dark")
+    if res.status_code != 200:
+        return {"error": "Failed to fetch broker data"}
 
-    if result:
-        return {"usdot": usdot, "broker_name": result.text.strip()}
+    soup = BeautifulSoup(res.text, "html.parser")
+
+    # Attempt to find the full name based on layout — adjust as needed
+    name_element = soup.find("h2")  # This depends on how the site structures the result
+    if name_element:
+        return {
+            "usdot": usdot,
+            "broker_name": name_element.text.strip()
+        }
     else:
-        return {"usdot": usdot, "broker_name": None}
+        return {
+            "usdot": usdot,
+            "broker_name": "Not Found"
+        }
 
 @app.route("/broker", methods=["GET"])
 def broker_lookup():
@@ -45,8 +58,11 @@ def broker_lookup():
     if not usdot:
         return jsonify({"error": "Missing USDOT number"}), 400
 
-    return jsonify(get_broker_name(usdot))
+    try:
+        result = get_broker_name(usdot)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": "Exception occurred", "details": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
